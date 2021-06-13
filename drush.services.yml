@@ -1,0 +1,5 @@
+services:
+  batch_editing.commands:
+    class: \Drupal\batch_editing\Commands\BatchEditingCommands
+    tags:
+      - { name: drush.command }
