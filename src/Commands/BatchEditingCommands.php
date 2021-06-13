@@ -3,7 +3,6 @@
 namespace Drupal\batch_editing\Commands;
 
 use Consolidation\OutputFormatters\StructuredData\RowsOfFields;
-use Drupal\Core\Cache\Cache;
 use Drush\Commands\DrushCommands;
 use Exception;
 
@@ -24,19 +23,34 @@ class BatchEditingCommands extends DrushCommands {
    * @command batch_editing
    */
   public function batch_editing() {
+    // データベースに接続
+    $connection = \Drupal::database();
+    // テーブル"node"を見に行き、nidとtypeを取得
+    $nodes = $connection->query("SELECT nid, type FROM node")->fetchAll();
+
     // コンテンツ編集ルール1
     // ・node.type = article, pageに対し実行
     // ・フィールドbodyに対し文字列置換を行なう
     // ・delicious->yummy, https://www.drupal.org->https://WWW.DRUPAL.ORG
     try {
-      // データベースに接続
-      $connection = \Drupal::service("database");
-      // テーブルnodeを読みに行き、nidとtypeを取得
-      $result = $connection->query("SELECT nid, type FROM node")->fetchAll();
-      foreach($result as $record) {
+      foreach($nodes as $record) {
         if ($record->type != "recipe") {
-          $this->replacement("node__body", $record->nid, "body_value", "delicious", "yummy");
-          $this->replacement("node__body", $record->nid, "body_value", "https://www.drupal.org", "https://WWW.DRUPAL.ORG");
+          $this->replacement(
+            "node__body", 
+            "entity_id", 
+            $record->nid, 
+            "body_value", 
+            "delicious", 
+            "yummy"
+          );
+          $this->replacement(
+            "node__body", 
+            "entity_id", 
+            $record->nid, 
+            "body_value", 
+            "https://www.drupal.org", 
+            "https://WWW.DRUPAL.ORG"
+          );
         }
       }
     } catch (Exception $error) {
@@ -46,12 +60,72 @@ class BatchEditingCommands extends DrushCommands {
     }
 
     // コンテンツ編集ルール2
-    // ・すべてのページに対し実行
-    // ・フィールドtitleに対し文字列置換を行なうnode_field_data
-    // ・Umami->this site
-    $result = \Drupal::database()->query("SELECT entity_id FROM node_field_data")->fetchAll();
-    foreach($result as $record) {
-      $this->replacement("node_field_data", $record->entity_id, "body_value", "delicious", "yummy");
+    // ・node.type = pageに対してのみ実行
+    // ・フィールドtitleに対し文字列置換を行なう
+    // ・s/Umami/this site/g
+    try {
+      foreach($nodes as $record) {
+        if ($record->type == "page") {
+          $this->replacement(
+            "node_field_data",
+            "nid", 
+            $record->nid, 
+            "title", 
+            "Umami", 
+            "this site"
+          );
+        }
+      }
+    } catch (Exception $error) {
+      echo($error->getMessage());
+    } finally {
+      echo("編集ルール2おわり" . PHP_EOL);
+    }
+
+    // コンテンツ編集ルール3
+    // ・node.type = recipeに対してのみ実行
+    // ・フィールドRecipeInstructionに対し文字列置換
+    // ・s/minutes/mins/g
+    try {
+      foreach($nodes as $record) {
+        if ($record->type == "recipe") {
+          $this->replacement(
+            "node__field_recipe_instruction",
+            "entity_id",
+            $record->nid,
+            "field_recipe_instruction_value",
+            "minutes",
+            "mins"
+          );
+        }
+      }
+    } catch(Exception $error) {
+      echo($error->getMessage());
+    } finally {
+      echo("編集ルール3おわり" . PHP_EOL);
+    }
+
+    // コンテンツ編集ルール4
+    // ・node.type = article,pageに対して実行
+    // ・フィールド"title"に対し文字列置換
+    // ・s/delicious/yummy/g
+    try {
+      foreach($nodes as $record) {
+        if ($record->type != "recipe") {
+          $this->replacement(
+            "node__body", 
+            "entity_id", 
+            $record->nid, 
+            "body_value", 
+            "delicious", 
+            "yummy"
+          );
+        }
+      }
+    } catch(Exception $error) {
+      echo($error->getMessage());
+    } finally {
+      echo("編集ルール4おわり" . PHP_EOL);
     }
   }
   /**
@@ -84,11 +158,11 @@ class BatchEditingCommands extends DrushCommands {
     //$query = $connection->update("node_field_data")->field("title")
   }
 
-  private function replacement($table, $entity_id, $field, $old_value, $new_value) {
+  private function replacement($table, $condition_col, $condition_val, $field, $old_value, $new_value) {
     // データベースに接続
     $connection = \Drupal::database();
     $connection->update($table)
-      ->condition("entity_id", $entity_id, "=")
+      ->condition($condition_col, $condition_val, "=")
       ->expression($field, "REPLACE($field, :old_value, :new_value)", [
         ":old_value" => $old_value,
         ":new_value" => $new_value
