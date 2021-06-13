@@ -17,7 +17,15 @@ use Drush\Commands\DrushCommands;
  *   - http://cgit.drupalcode.org/devel/tree/drush.services.yml
  */
 class BatchEditingCommands extends DrushCommands {
-
+  /**
+   * @command torichan:fixTitle
+   */
+  public function fixTitle() {
+    $database = \Drupal::database();
+    $query = $database->query("SELECT body_value FROM node__body");
+    $result = $query->fetchAll();
+    var_dump($result);
+  }
   /**
    * Command description here.
    *
