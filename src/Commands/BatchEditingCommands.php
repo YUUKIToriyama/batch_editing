@@ -131,6 +131,6 @@ class BatchEditingCommands extends DrushCommands
    * @command batch_editing:credit
    */
   public function credit() {
-    echo ("@ 2021 YUUKIToriyama All Rights Reserved.");
+    echo ("@ 2021 YUUKIToriyama All Rights Reserved." . PHP_EOL);
   }
 }
