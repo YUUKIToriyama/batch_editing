@@ -1,5 +1,5 @@
 {
-    "name": "org/batch_editing",
+    "name": "YUUKIToriyama/batch_editing",
     "type": "drupal-drush",
     "extra": {
         "drush": {
